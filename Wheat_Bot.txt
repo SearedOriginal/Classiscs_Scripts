@@ -1,0 +1,165 @@
+// This is a bot for automatically harvesting crops in Minecraft using Macromod.
+
+// Configure #north and #south to the very edge of the field.
+// Configure #west to the western edge of the field. Bot will log out when done.
+// Leave chests along the northern border and fences along the southern border. Cover water sources with halfslabs.
+// Start at the North-East end of the field. The bot will pick in rows from north to south, then slide west for the next row.
+// #toolslot is the slot used to break the crops. Put a fortune 3 tool in the slot to get more carrots or potatoes.
+// &plant is the item used to replant (e.g. "wheat_seeds","carrot","potato")
+// &mode changes the bot's behavior. "default" will harvest a row, then replant it, and repeat. "plant" will plant without harvesting
+// and "harvest" will harvest without planting.
+// Set health = 0 to disable logging out when injured.
+
+// Original code by Sanwi. Modifications by TangentialThreat.
+ 
+// Config
+
+#north = -5922
+#south = -5888
+#west = 797
+#toolslot = 1
+&plant = "wheat_seeds"
+&mode = "default"
+#wait = 100
+&food = "baked_potato"
+#health = 0
+#autologout = 0
+ 
+// End Config
+ 
+If(wheat1);
+    Log(wheat1 Disabled);
+    unset(wheat1);
+    stop;
+Else;
+    log("wheat1 Enabled");
+    set(wheat1);
+    slot(1);
+do;
+
+        if(%XPOS% = %#west%);
+            log("Task finished.");
+                if(%#autologout% = 1);
+                    log("Logging out automatically in 5 seconds.");
+                    wait(5);
+                    disconnect;
+                endif;
+            stop;
+        endif;
+
+        if(%ZPOS% = %#south%);
+                #dest = %#north%
+                look(90,90);
+        else;
+                #dest = %#south%
+                // Chest wheat & seeds
+                look(0,60);
+                wait(%#wait%ms);
+                key(use);
+                wait(500ms);
+                for(#forthrow,54,71);
+                        slotclick(%#forthrow%,l,true);
+                        wait(%#wait%ms);
+                       // slotclick(-999);
+                       // wait(%#wait%ms);
+                next;
+                gui();
+                look(270,90);
+        endif;
+ 
+if(%HUNGER%<=14)
+    log("Getting hungry. Eating.")
+    DO;
+    PICK(%&food%);
+    KEY(use);
+    UNTIL(%HUNGER%>19);
+    ENDIF;
+       
+        do;
+
+            if(HEALTH < %#health%);
+                log("I'm hurt. Logging out,");
+                disconnect;
+                stop;
+            endif;
+
+                keydown(left);
+                do;
+                        // Mode
+                        if(%&mode% = "plant")
+                                set(plant);
+                        elseif(%&mode% = "harvest")
+                                unset(plant);
+                        elseif(%&mode% = "default")
+                                if(%#dest% = %#south%);
+                                        look(270,90);
+                                        unset(plant);
+                                else;
+                                        look(90,90);
+                                        set(plant);
+                                endif;
+                        endif;
+                       
+                        // If planting
+                        if(plant);
+                                if(%&plant% = "wheat_seeds");
+                                        // If item is seeds and stack size >5
+                                        if((%ITEM% = %&plant%) && (%STACKSIZE% > 5))
+                                                key(use);
+                                        else;
+                                                keyup(left);
+                                                do;
+                                                        // If no stacks on hotbar >5
+                                                        if(%INVSLOT% = 9);
+                                                                // Get more seeds
+                                                                gui(inventory);
+                                                                wait(%#wait%ms);
+                                                                for(#cfor,9,35);
+                                                                        getslot(%&plant%,#cslot,%#cfor%);
+                                                                        if(%#cslot% < 36)
+                                                                                slotclick(%#cslot%,1,true);
+                                                                        endif;
+                                                                        wait(%#wait%ms);
+                                                                next;
+                                                                gui();
+                                                                wait(%#wait%ms);
+                                                                slot(1);
+                                                        else;
+                                                                inventoryup(1);
+                                                        endif;
+                                                until((%ITEM% = %&plant%) && (%STACKSIZE% > 5))
+                                                keydown(left);
+                                        endif;
+                                else;
+                                        pick("%&plant%");
+                                        key(use);
+                                endif;
+                        // else pick
+                        else;
+                                slot(%#toolslot%);
+                                key(attack);
+                                key(use);
+                        endif;
+                        #cz = %ZPOS%
+                while(%ZPOS% != %#cz%);
+        until(%ZPOS% = %#dest%);
+       
+        keyup(left);
+        keyup(right);
+ 
+        #cx = %XPOS%
+        if((%#dest% = %#north%) || (plant) || (%&mode% = "harvest"));
+                do;
+                        look(90,90);
+                        keydown(sneak);
+                        keydown(back);
+                        key(use);
+                        wait(%#wait%ms);
+                until(%#cx% != %XPOS%);
+        endif;
+       
+        keyup(sneak);
+        keyup(back);
+        keyup(forward);
+       
+loop;
